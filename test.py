@@ -14,9 +14,7 @@ import django
 
 django.setup()
 
-from django.contrib.auth.models import User
 from app import models
-from config import settings
 
 from asgiref.sync import sync_to_async
 # end
@@ -67,11 +65,17 @@ PAYMENT_PROVIDER_TOKEN = '371317599:TEST:1660282710908'
 
 @sync_to_async
 def _post_client(user):
-    models.TGClient(
-        tg_id=user['id'],
-        username=user['username'],
-        phone_number=user['phone_number'],
-    ).save()
+    try:
+        models.TGClient(
+            tg_id=user['id'],
+            username=user['username'],
+            phone_number=user['phone_number'],
+        ).save()
+
+        return True
+    except Exception as e:
+        print(e)
+        return False
 
 
 @sync_to_async
@@ -81,14 +85,37 @@ def _is_client(user_id):
 
 @sync_to_async
 def _post_product(user):
-    models.Product(
-        owner=user['id'],
-        category=user['category'],
-        title=user['title'],
-        description=user['description'],
-        price=user['price'],
-        photo=open(f'img/{user["photo"]}.jpg', 'rb'),
-    ).save()
+    try:
+        models.Product(
+            owner=user['id'],
+            category=user['category'],
+            title=user['title'],
+            description=user['description'],
+            price=user['price'],
+            photo=f'{user["photo"]}.jpg',
+        ).save()
+
+        return True
+    except Exception as e:
+        print(e)
+        return False
+
+
+@sync_to_async
+def _get_products(user_id):
+    return models.Product.objects.filter(owner=user_id).values()
+
+
+@sync_to_async
+def _delete_product(user, photo):
+    try:
+        models.Product.objects.filter(id=user, photo=str(photo) + '.jpg').delete()
+        print(str(photo) + '.jpg')
+
+        return True
+    except Exception as e:
+        print(e)
+        return False
 
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -104,9 +131,9 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def username_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['username'] = update.message.text
 
-    button = [[KeyboardButton(text='share my contact', request_contact=True)]]
+    button = [[KeyboardButton(text='send my contact', request_contact=True)]]
 
-    await update.message.reply_text('Tap the button to send your phone number',
+    await update.message.reply_text('Tap the button below to send your phone number',
                                     reply_markup=ReplyKeyboardMarkup(button, resize_keyboard=True))
 
     return PHONE_NUMBER
@@ -304,7 +331,8 @@ Contact: {context.user_data.get('phone_number', 'Not set')}
 
 
 async def clear_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    os.remove(f'img/{context.user_data["photo"]}.jpg')
+    if context.user_data.get('photo', 'Not set') != 'Not set':
+        os.remove(f'img/{context.user_data["photo"]}.jpg')
     context.user_data.clear()
 
     await update.message.reply_text('Cleared')
@@ -312,11 +340,34 @@ async def clear_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def proceed_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await _post_product(context.user_data)
+    user = update.effective_user
+    context.user_data['id'] = user.id
 
-    await update.message.reply_text('Proceeded seccessfully')
+    _post = await _post_product(context.user_data)
 
-    return ConversationHandler.END
+    if _post:
+        await update.message.reply_text(
+            'Proceeded seccessfully',
+            reply_markup=ReplyKeyboardMarkup([
+                ['Add product'],
+                ['Show products'],
+                ['Delete product'],
+            ], resize_keyboard=True)
+        )
+
+        return MENU
+    else:
+        await update.message.reply_text(
+            'Something went wrong\nTry again',
+            reply_markup=ReplyKeyboardMarkup([
+                ['Category', 'Title'],
+                ['Description'],
+                ['Price', 'Photo', 'Ship'],
+                ['Status', 'Back'],
+            ], resize_keyboard=True)
+        )
+
+        return ADD_PRODUCT
 
 
 async def done_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -334,14 +385,69 @@ async def done_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def show_products_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Show products')
+    user = update.effective_user
+    products = await _get_products(user.id)
+
+    if products:
+        for product in products:
+            txt = f"""
+Category: {product['category']}
+Title: {product['title']}
+Description: {product['description']}
+Price: {product['price']}
+                """
+
+            await update.message.reply_photo(
+                photo=open(f'img/{product["photo"]}', 'rb'),
+                caption=txt
+            )
+
+    return MENU
+
+
+async def pre_delete_product_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        'Enter photo ID',
+        reply_markup=ReplyKeyboardMarkup([
+            ['Back'],
+        ], resize_keyboard=True)
+    )
+
+    return DELETE_PRODUCT
 
 
 async def delete_product_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Delete product')
+    user = update.effective_user
+    photo_id = update.message.text
+
+    delete = await _delete_product(user.id, photo_id)
+
+    if delete:
+        await update.message.reply_text(
+            'Deleted seccessfully',
+            reply_markup=ReplyKeyboardMarkup([
+                ['Add product'],
+                ['Show products'],
+                ['Delete product'],
+            ], resize_keyboard=True)
+        )
+
+        return MENU
+    else:
+        await update.message.reply_text(
+            'Something went wrong\nTry again',
+            reply_markup=ReplyKeyboardMarkup([
+                ['Add product'],
+                ['Show products'],
+                ['Delete product'],
+            ], resize_keyboard=True)
+        )
+
+        return MENU
 
 
-async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def end_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('/start to start again', reply_markup=ReplyKeyboardRemove())
 
     return ConversationHandler.END
@@ -366,7 +472,7 @@ if __name__ == '__main__':
             MENU: [
                 MessageHandler(filters.Regex(".*Add product$"), add_product_handler),
                 MessageHandler(filters.Regex(".*Show products$"), show_products_handler),
-                MessageHandler(filters.Regex(".*Delete product$"), delete_product_handler),
+                MessageHandler(filters.Regex(".*Delete product$"), pre_delete_product_handler),
             ],
             ADD_PRODUCT: [
                 MessageHandler(filters.Regex(".*Category$"), pre_category_handler),
@@ -382,7 +488,8 @@ if __name__ == '__main__':
                 MessageHandler(filters.TEXT, show_products_handler)
             ],
             DELETE_PRODUCT: [
-                MessageHandler(filters.TEXT, delete_product_handler)
+                MessageHandler(filters.TEXT, delete_product_handler),
+                MessageHandler(filters.Regex(".*Back$"), menu_handler),
             ],
             STATUS: [
                 MessageHandler(filters.Regex(".*Clear$"), clear_handler),
@@ -415,7 +522,7 @@ if __name__ == '__main__':
                 MessageHandler(filters.TEXT, without_shipping_handler),
             ],
         },
-        fallbacks=[CommandHandler('cancel', cancel_handler)],
+        fallbacks=[CommandHandler('end', end_handler)],
     )
 
     app.add_handler(conv_handler)
