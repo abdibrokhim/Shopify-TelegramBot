@@ -2,9 +2,9 @@ from django.db import models
 
 
 class TGClient(models.Model):
-    tg_id = models.CharField(max_length=255)
-    username = models.CharField(max_length=255)
-    phone_number = models.CharField(max_length=255)
+    tg_id = models.CharField(max_length=255, blank=True, null=True)
+    username = models.CharField(max_length=255, blank=True, null=True)
+    phone_number = models.CharField(max_length=255, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -13,15 +13,19 @@ class TGClient(models.Model):
 
 
 class Product(models.Model):
-    owner = models.CharField(max_length=255)
+    tg_id = models.CharField(max_length=255)
+    username = models.CharField(max_length=255)
+    phone_number = models.CharField(max_length=255)
     category = models.CharField(max_length=255)
     title = models.CharField(max_length=255)
     description = models.TextField(max_length=1000)
     price = models.FloatField()
-    photo = models.ImageField(upload_to='products')
+    photo = models.ImageField(upload_to='media')
+    ship = models.CharField(max_length=255)
+    payment = models.CharField(max_length=255)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.title
+        return self.category
 
