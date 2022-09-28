@@ -44,37 +44,36 @@ from telegram.ext import (
 )
 import requests
 
-
 TELEGRAM_BOT_TOKEN = "5565038506:AAE5p97y4rW8r6yt4nXwEgg9Adea1UzYJmE"
 DEFAULT_PAYMENT_URL = 'https://checkout.paycom.uz/632db4263ea226c2b6ff9e51'
 
 _about = """
-Bot orqali o\'z mahsulotlaringizni oson va tez tarzda soting.
+💀 Bot orqali o\'z mahsulotlaringizni oson va tez tarzda soting.
 
-Botdan foydalanish uchun quyidagi amallarni bajaring:
+🗣 Botdan foydalanish uchun quyidagi amallarni bajaring:
  - Botga /start buyrug\'ini yuboring
  - Ismingizni kiriting
  - Telefon raqamingizni yuboring
 
-Mahsulot qo\'shish, ko\'rish, o\'chirish uchun quyidagi amallarni bajaring:
+🗣 Mahsulot qo\'shish, ko\'rish, o\'chirish uchun quyidagi amallarni bajaring:
  - Mahsulotingizni qo\'shish uchun /add buyrug\'ini yuboring yoki "Mahsulot qo\'shish" tugmasini bosing
  - Mahsulotlaringizni ko\'rish uchun /show buyrug\'ini yuboring yoki "Mening mahsulotlarim" tugmasini bosing
  - Mahsulotingizni o\'chirish uchun /del buyrug\'ini yuboring yoki "Mahsulotni o\'chirish" tugmasini bosing
     
-Mahsulotni sotish uchun quyidagi amallarni bajaring:
+🗣 Mahsulotni sotish uchun quyidagi amallarni bajaring:
  - Mahsulotingizni tanlang va Forward qiling
     
-Commands xaqida ma\'lumot olish uchun /cmd buyrug\'ini yuboring
+🗣 Commandlar xaqida ma\'lumot olish uchun /cmd buyrug\'ini yuboring
 """
 
 _commands = """
-/start - Botni ishga tushirish
-/menu - Bosh menyuni ochish
-/add - Mahsulot qo\'shish
-/show - Mahsulotlarni ko\'rish
-/del - Mahsulotni o\'chirish
-/doc - Bot haqida
-/end - Botni to\'xtatish
+🛠 /start - Botni ishga tushirish
+⚙️ /menu - Bosh menyuni ochish
+📌 /add - Mahsulot qo\'shish
+🗑 /show - Mening mahsulotlarim
+🧨 /del - Mahsulotni o\'chirish
+🔬 /doc - Bot haqida ma\'lumot
+💣 /end - Botni to\'xtatish
 """
 
 _commands_ = {
@@ -87,8 +86,9 @@ _commands_ = {
     'end': "end_handler",
 }
 
-MAIN_MENU_KEYBOARD = [['Mahsulot qo\'shish'], ['Mening mahsulotlarim'], ['Mahsulotni o\'chirish']]
-SECONDARY_MENU_KEYBOARD = [['Kategoriya', 'Nom'], ['Tavsif', 'Narx'], ['Rasm', 'Eltib Berish', "To\'lov"], ['Status', 'Orqaga']]
+MAIN_MENU_KEYBOARD = [['📌 Mahsulot qo\'shish'], ['🗑 Mening mahsulotlarim'], ['🧨 Mahsulotni o\'chirish']]
+SECONDARY_MENU_KEYBOARD = [['🧷 Kategoriya', '🖇 Nom'], ['⛓ Tavsif', '🪙 Narx'],
+                           ['💩 Rasm', '📦 Eltib Berish', "🔗 To\'lov"], ['👁 Status', '🔙 Orqaga']]
 
 (USERNAME,
  PHONE_NUMBER,
@@ -182,8 +182,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     context.user_data['id'] = user.id
 
-    await update.message.reply_text('Assalomu alaykum, ' + user.first_name + '!')
-    await update.message.reply_text('Ismingizni kiriting')
+    await update.message.reply_text('💀 Assalomu alaykum, ' + user.first_name + '!')
+    await update.message.reply_text('👀 Ismingizni kiriting')
 
     return USERNAME
 
@@ -191,9 +191,9 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def username_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['username'] = update.message.text
 
-    button = [[KeyboardButton(text='Telefon raqamini yuborish', request_contact=True)]]
+    button = [[KeyboardButton(text='☎️ Telefon raqamini yuborish', request_contact=True)]]
 
-    await update.message.reply_text('Telefon raqamingizni yuborish uchun quyidagi tugmani bosing',
+    await update.message.reply_text('👀 Telefon raqamingizni yuborish uchun quyidagi tugmani bosing',
                                     reply_markup=ReplyKeyboardMarkup(button, resize_keyboard=True))
 
     return PHONE_NUMBER
@@ -205,9 +205,9 @@ async def phone_number_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if not await _is_client(context.user_data['id']):
         await _post_client(context.user_data)
 
-    await update.message.reply_text('Saqlandi')
+    await update.message.reply_text('📍 Saqlandi')
     await update.message.reply_text(
-        'Yangi mahsulot qo\'shishga tayyormisiz?',
+        '💀 Yangi mahsulot qo\'shishga tayyormisiz?',
         reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
     )
 
@@ -222,7 +222,7 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['phone_number'] = client[0]['phone_number']
 
     await update.message.reply_text(
-        'Yangi mahsulot qo\'shishga tayyormisiz?',
+        '💀 Yangi mahsulot qo\'shishga tayyormisiz?',
         reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
     )
 
@@ -237,7 +237,7 @@ async def add_product_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data['phone_number'] = client[0]['phone_number']
 
     await update.message.reply_text(
-        'Mahsulotingiz ma\'lumotlarini birma-bir kiriting',
+        '💀 Mahsulotingiz ma\'lumotlarini birma-bir kiriting',
         reply_markup=ReplyKeyboardMarkup(SECONDARY_MENU_KEYBOARD, resize_keyboard=True)
     )
 
@@ -245,40 +245,40 @@ async def add_product_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def pre_category_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Mahsulotingiz kategoriyasini kiriting')
+    await update.message.reply_text('💀 Mahsulotingiz kategoriyasini kiriting (masalan: "Telefonlar")')
 
     return CATEGORY
 
 
 async def pre_title_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Mahsulotingiz nomini kiriting')
+    await update.message.reply_text('💀 Mahsulotingiz nomini kiriting (masalan: "iPhone 14")')
 
     return TITLE
 
 
 async def pre_description_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Mahsulotingiz tavsifini kiriting')
+    await update.message.reply_text('💀 Mahsulotingiz tavsifini kiriting (masalan: "iPhone 14 256GB")')
 
     return DESCRIPTION
 
 
 async def pre_price_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Mahsulotingiz narxini kiriting')
+    await update.message.reply_text('💀 Mahsulotingiz narxini kiriting so\'mda (masalan: "21780000")')
 
     return PRICE
 
 
 async def pre_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Mahsulotingiz rasmini yuboring')
+    await update.message.reply_text('💀 Mahsulotingiz rasmini yuboring (formatni farqi yo\'q)')
 
     return PHOTO
 
 
 async def pre_shipping_choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        'Mahsulotingizni yetkazib berish xizmati bormi?',
+        '💀 Mahsulotingizni yetkazib berish xizmati bormi?',
         reply_markup=ReplyKeyboardMarkup([
-            ['Bor', 'Yo\'q'],
+            ['👌 Bor', '💤 Yo\'q'],
         ], resize_keyboard=True)
     )
 
@@ -286,7 +286,7 @@ async def pre_shipping_choice_handler(update: Update, context: ContextTypes.DEFA
 
 
 async def pre_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Mahsulotingiz uchun to\'lov linkini kiriting')
+    await update.message.reply_text(f"💀 Mahsulotingiz uchun to\'lov linkini kiriting (masalan: {DEFAULT_PAYMENT_URL}')")
 
     return PAYMENT
 
@@ -294,29 +294,38 @@ async def pre_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def category_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['category'] = update.message.text
 
-    await update.message.reply_text('Saqlandi')
+    await update.message.reply_text('📍 Saqlandi')
     return ADD_PRODUCT
 
 
 async def title_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['title'] = update.message.text
 
-    await update.message.reply_text('Saqlandi')
+    await update.message.reply_text('📍 Saqlandi')
     return ADD_PRODUCT
 
 
 async def description_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['description'] = update.message.text
 
-    await update.message.reply_text('Saqlandi')
+    await update.message.reply_text('📍 Saqlandi')
     return ADD_PRODUCT
 
 
 async def price_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['price'] = update.message.text
 
-    await update.message.reply_text('Saqlandi')
+    await update.message.reply_text('📍 Saqlandi')
     return ADD_PRODUCT
+
+
+async def nan_price_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('💩 Iltimos, narxni raqam bilan kiriting (so\'mda)',
+                                    reply_markup=ReplyKeyboardMarkup([
+                                        ['🔙 Orqaga']
+                                    ], resize_keyboard=True))
+
+    return PRICE
 
 
 async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -326,29 +335,38 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         context.user_data['photo'] = file_id
         await file.download(f'img/{context.user_data["photo"]}.jpg')
-        await update.message.reply_text('Saqlandi')
+        await update.message.reply_text('📍Saqlandi')
     except Exception as e:
         print(e)
-        await update.message.reply_text('Xatolik yuz berdi\nIltimos qaytadan yuboring')
+        await update.message.reply_text('💀 Xatolik yuz berdi\nIltimos qaytadan yuboring')
 
     return ADD_PRODUCT
 
 
-async def with_shipping_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['shipping'] = update.message.text
+async def nan_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('💩 Iltimos rasm yuboring',
+                                    reply_markup=ReplyKeyboardMarkup([
+                                        ['🔙 Orqaga']
+                                    ], resize_keyboard=True))
 
-    await update.message.reply_text('Saqlandi',
+    return PHOTO
+
+
+async def with_shipping_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['shipping'] = update.message.text[1:]
+
+    await update.message.reply_text('📍 Saqlandi',
                                     reply_markup=ReplyKeyboardMarkup(SECONDARY_MENU_KEYBOARD, resize_keyboard=True)
-    )
+                                    )
 
     return ADD_PRODUCT
 
 
 async def without_shipping_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['shipping'] = update.message.text
-    await update.message.reply_text('Saqlandi',
+    context.user_data['shipping'] = update.message.text[1:]
+    await update.message.reply_text('📍 Saqlandi',
                                     reply_markup=ReplyKeyboardMarkup(SECONDARY_MENU_KEYBOARD, resize_keyboard=True)
-    )
+                                    )
 
     return ADD_PRODUCT
 
@@ -356,42 +374,42 @@ async def without_shipping_handler(update: Update, context: ContextTypes.DEFAULT
 async def payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['payment'] = update.message.text
 
-    await update.message.reply_text('Saqlandi',
+    await update.message.reply_text('📍 Saqlandi',
                                     reply_markup=ReplyKeyboardMarkup(SECONDARY_MENU_KEYBOARD, resize_keyboard=True)
-    )
+                                    )
 
     return ADD_PRODUCT
 
 
 async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     txt = f"""
-Kategoriya: {context.user_data.get('category', 'Not set')}
-Nomi: {context.user_data.get('title', 'Not set')}
-Tavsif: {context.user_data.get('description', 'Not set')}
-Narxi: {context.user_data.get('price', 'Not set')}
-Eltib berish xizmati: {context.user_data.get('shipping', 'Not set')}
-To\'lov linki: {context.user_data.get('payment', 'Not set')}
-ID: {context.user_data.get('photo', 'Not set')}
-Kimniki: {context.user_data.get('username', 'Not set')}
-Aloqa: {context.user_data.get('phone_number', 'Not set')}
+🧷 Kategoriya: {context.user_data.get('category', 'null')}
+🖇 Nomi: {context.user_data.get('title', 'null')}
+⛓ Tavsif: {context.user_data.get('description', 'null')}
+🪙 Narxi: {context.user_data.get('price', 'null')}
+📦 Eltib berish xizmati: {context.user_data.get('shipping', 'null')[1:]}
+🔗 To\'lov linki: {context.user_data.get('payment', 'null')}
+🗝 ID: {context.user_data.get('photo', 'null')}
+👽 Kimniki: {context.user_data.get('username', 'null')}
+☎️ Aloqa: {context.user_data.get('phone_number', 'null')}
 
     """
 
-    if context.user_data.get('photo', 'Not set') != 'Not set':
+    if context.user_data.get('photo', 'null') != 'null':
         await update.message.reply_photo(
             photo=open(f'img/{context.user_data["photo"]}.jpg', 'rb'),
             caption=txt,
             reply_markup=ReplyKeyboardMarkup([
-                ['Yangilash', 'Tasdiqlash'],
-                ['Orqaga']
+                ['🛁 Yangilash', '🔐 Tasdiqlash'],
+                ['🔙 Orqaga']
             ], resize_keyboard=True)
         )
     else:
         await update.message.reply_text(
             txt,
             reply_markup=ReplyKeyboardMarkup([
-                ['Yangilash', 'Tasdiqlash'],
-                ['Orqaga']
+                ['🛁 Yangilash', '🔐 Tasdiqlash'],
+                ['🔙 Orqaga']
             ], resize_keyboard=True)
         )
 
@@ -399,7 +417,7 @@ Aloqa: {context.user_data.get('phone_number', 'Not set')}
 
 
 async def clear_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.user_data.get('photo', 'Not set') != 'Not set':
+    if context.user_data.get('photo', 'null') != 'null':
         try:
             os.remove(f'img/{context.user_data["photo"]}.jpg')
         except FileNotFoundError:
@@ -412,7 +430,7 @@ async def clear_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['username'] = client[0]['username']
     context.user_data['phone_number'] = client[0]['phone_number']
 
-    await update.message.reply_text('O\'chirildi')
+    await update.message.reply_text('🔫 O\'chirildi')
 
     return STATUS
 
@@ -425,14 +443,14 @@ async def proceed_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if _post:
         await update.message.reply_text(
-            'Mahsulotingiz muvaffaqiyatli yuborildi',
+            '🛸 Mahsulotingiz muvaffaqiyatli tasdiqlandi!',
             reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
         )
 
         return MENU
     else:
         await update.message.reply_text(
-            'Mahsulotingiz tasdiqlanmadi\nIltimos qaytadan yuboring',
+            '💩 Mahsulotingiz tasdiqlanmadi\nIltimos qaytadan yuboring',
             reply_markup=ReplyKeyboardMarkup(SECONDARY_MENU_KEYBOARD, resize_keyboard=True)
         )
 
@@ -441,7 +459,7 @@ async def proceed_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def done_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        'Mahsulotingiz ma\'lumotlarini birma-bir kiriting',
+        '💀 Mahsulotingiz ma\'lumotlarini birma-bir kiriting',
         reply_markup=ReplyKeyboardMarkup(SECONDARY_MENU_KEYBOARD, resize_keyboard=True)
     )
 
@@ -455,14 +473,14 @@ async def show_products_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if products:
         for product in products:
             txt = f"""
-Kategoriya: {product['category']}
-Nomi: {product['title']}
-Tavsif: {product['description']}
-Narxi: {product['price']}
-Eltib berish xizmati: {product['ship']}
-ID: {product['photo'][:-4]}
-Kimniki: {product['username']}
-Aloqa: {product['phone_number']}
+🧷 Kategoriya: {product['category']}
+🖇 Nomi: {product['title']}
+⛓ Tavsif: {product['description']}
+🪙 Narxi: {product['price']}
+📦 Eltib berish xizmati: {product['ship']}
+🗝 ID: {product['photo'][:-4]}
+👽 Kimniki: {product['username']}
+☎️ Aloqa: {product['phone_number']}
 """
 
             reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=product['payment'])]])
@@ -473,16 +491,16 @@ Aloqa: {product['phone_number']}
                 reply_markup=reply_markup
             )
     else:
-        await update.message.reply_text('Sizda hech qanday mahsulot yo\'q')
+        await update.message.reply_text('💩 Sizda hech qanday mahsulot yo\'q')
 
     return MENU
 
 
 async def pre_delete_product_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        'O\'chirish uchun mahsulot ID raqamini kiriting',
+        '🗝 O\'chirish uchun mahsulot ID raqamini kiriting',
         reply_markup=ReplyKeyboardMarkup([
-            ['Orqaga'],
+            ['🔙 Orqaga'],
         ], resize_keyboard=True)
     )
 
@@ -497,7 +515,7 @@ async def delete_product_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     if delete:
         await update.message.reply_text(
-            'Mahsulot muvaffaqiyatli o\'chirildi',
+            '🔫 Mahsulot muvaffaqiyatli o\'chirildi!',
             reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
         )
         try:
@@ -508,7 +526,7 @@ async def delete_product_handler(update: Update, context: ContextTypes.DEFAULT_T
         return MENU
     else:
         await update.message.reply_text(
-            'Mahsulot topilmadi\nIltimos qaytadan kiriting',
+            '💩 Mahsulot topilmadi\nIltimos qaytadan kiriting',
             reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
         )
 
@@ -516,7 +534,7 @@ async def delete_product_handler(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def end_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Botdan qayta foydalanish uchun /menu bosing',
+    await update.message.reply_text('👀 Botdan qayta foydalanish uchun /menu bosing',
                                     reply_markup=ReplyKeyboardRemove())
 
 
@@ -573,10 +591,14 @@ if __name__ == '__main__':
                 MessageHandler(filters.TEXT, description_handler)
             ],
             PRICE: [
-                MessageHandler(filters.TEXT, price_handler)
+                MessageHandler(filters.TEXT, price_handler),
+                MessageHandler(filters.Regex(".*Orqaga$"), done_handler),
+                MessageHandler(filters.ALL, nan_price_handler)
             ],
             PHOTO: [
-                MessageHandler(filters.PHOTO, photo_handler)
+                MessageHandler(filters.PHOTO, photo_handler),
+                MessageHandler(filters.Regex(".*Orqaga$"), done_handler),
+                MessageHandler(filters.ALL, nan_photo_handler)
             ],
             SHIPPING_CHOICE: [
                 MessageHandler(filters.Regex(".*Bor$"), with_shipping_handler),
