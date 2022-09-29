@@ -20,6 +20,7 @@ from asgiref.sync import sync_to_async
 # end
 
 import os
+import datetime
 
 from telegram import (
     Update,
@@ -135,11 +136,12 @@ _commands_dict = {
     'end': "end_handler",
 }
 
-MAIN_MENU_KEYBOARD = [['📌 Mahsulot qo\'shish'], ['🗑 Mening mahsulotlarim'], ['🧨 Mahsulotni o\'chirish'], ['🎁 Tariflar']]
+MAIN_MENU_KEYBOARD = [['📌 Mahsulot qo\'shish'], ['🗑 Mening mahsulotlarim'],
+                      ['🧨 Mahsulotni o\'chirish'], ['🎁 Tariflar', '👤 Profil']]
+
 SECONDARY_MENU_KEYBOARD = [['🧷 Kategoriya', '🖇 Nom'], ['⛓ Tavsif', '🪙 Narx'],
                            ['💩 Rasm', '📦 Eltib Berish', "🔗 To\'lov"], ['👁 Status', '🔙 Orqaga']]
 
-PREMIUM_KEYBOARD = ['🌟 Premium']
 TARIFF_KEYBOARD = [['🌚 Basic'], ['🌝 Advanced'], ['🌟 Premium'], ['🔙 Orqaga']]
 
 
@@ -164,6 +166,16 @@ TARIFF_KEYBOARD = [['🌚 Basic'], ['🌝 Advanced'], ['🌟 Premium'], ['🔙 O
  ADVANCED,
  PREMIUM
  ) = range(20)
+
+
+def get_date():
+    date = datetime.datetime.now().strftime("%Y-%m-%d")
+    return date
+
+
+def get_time():
+    time = datetime.datetime.now().strftime("%H:%M:%S")
+    return time
 
 
 @sync_to_async
@@ -233,18 +245,45 @@ def _delete_product(user, photo):
 
 
 @sync_to_async
+def _post_tariff(user):
+    try:
+        models.Order(
+            tg_id=user['id'],
+        ).save()
+        return True
+    except Exception as e:
+        print(e)
+        return False
+
+
+@sync_to_async
 def _get_tariff(name):
-    return models.TGClient.objects.filter(name=name).values()
+    return models.Tariff.objects.filter(name=name).values()
 
 
 @sync_to_async
 def _get_client_tariff(user_id):
-    return models.TGClient.objects.filter(tg_id=user_id).values()
+    return models.Order.objects.filter(tg_id=user_id).values()
 
 
 @sync_to_async
-def _is_active(user_id):
-    return models.TGClient.objects.filter(tg_id=user_id, is_active=True).exists()
+def _upd_qty(user_id, qty):
+    try:
+        models.Order.objects.filter(tg_id=user_id).update(left_qty=qty)
+        return True
+    except Exception as e:
+        print(e)
+        return False
+
+
+@sync_to_async
+def _get_date(user_id):
+    try:
+        models.Order.objects.filter(tg_id=user_id).values('created_at').strftime("%Y-%m-%d")
+        return True
+    except Exception as e:
+        print(e)
+        return False
 
 
 async def doc_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -289,6 +328,7 @@ async def phone_number_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if not await _is_client(context.user_data['id']):
         await _post_client(context.user_data)
+        await _post_tariff(context.user_data)
 
     await update.message.reply_text('📍 Saqlandi')
     await update.message.reply_text(
@@ -306,10 +346,11 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['username'] = client[0]['username']
     context.user_data['phone_number'] = client[0]['phone_number']
 
-    await update.message.reply_text(
-        '💀 Yangi mahsulot qo\'shishga tayyormisiz?',
-        reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
-    )
+    if client:
+        await update.message.reply_text(
+            '💀 Yangi mahsulot qo\'shishga tayyormisiz?',
+            reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
+        )
 
     return MENU
 
@@ -372,7 +413,7 @@ async def pre_shipping_choice_handler(update: Update, context: ContextTypes.DEFA
 
 async def pre_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"💀 Mahsulotingiz uchun to\'lov linkini kiriting (masalan: {DEFAULT_PAYMENT_URL}')")
+        f"💀 Mahsulotingiz uchun to\'lov linkini kiriting (masalan: {DEFAULT_PAYMENT_URL})")
 
     return PAYMENT
 
@@ -429,6 +470,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ADD_PRODUCT
 
 
+# need some changes
 async def nan_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('💩 Iltimos rasm yuboring',
                                     reply_markup=ReplyKeyboardMarkup([
@@ -533,22 +575,32 @@ async def proceed_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     context.user_data['id'] = user.id
 
-    _post = await _post_product(context.user_data)
+    tariff = await _get_client_tariff(user.id)
+    left_qty = tariff[0]['left_qty']
+    left_days = tariff[0]['left_days']
 
-    if _post:
-        await update.message.reply_text(
-            '🛸 Mahsulotingiz muvaffaqiyatli tasdiqlandi!',
-            reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
-        )
+    if int(left_qty) > 0 and int(left_days) > 0:
+        _post = await _post_product(context.user_data)
 
-        return MENU
-    else:
-        await update.message.reply_text(
-            '💩 Mahsulotingiz tasdiqlanmadi\nIltimos qaytadan yuboring',
-            reply_markup=ReplyKeyboardMarkup(SECONDARY_MENU_KEYBOARD, resize_keyboard=True)
-        )
+        if _post:
+            await _upd_qty(user.id, (int(left_qty)-1))
 
-        return ADD_PRODUCT
+            await update.message.reply_text(
+                '🛸 Mahsulotingiz muvaffaqiyatli tasdiqlandi!',
+                reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
+            )
+
+
+            return MENU
+        else:
+            await update.message.reply_text(
+                '💩 Mahsulotingiz tasdiqlanmadi\nIltimos qaytadan yuboring, yoki Tarifingizni yangilang',
+                reply_markup=ReplyKeyboardMarkup(SECONDARY_MENU_KEYBOARD, resize_keyboard=True)
+            )
+
+            return ADD_PRODUCT
+
+    return
 
 
 async def done_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -650,13 +702,13 @@ async def pre_basic_tariff_handler(update: Update, context: ContextTypes.DEFAULT
 🌚 Siz bu tarifni sotib olishni xohlaysizmi?
 
 Avzalliklar:
-    🍭 Yangi mahsulotlar soni: {tariff['quantity']}
+    🍭 Yangi mahsulotlar soni: {tariff[0]['quantity']}
     
-    ⏳ Muddati: {tariff['duration']}
+    ⏳ Muddati: {tariff[0]['duration']} kun
     
     """
 
-        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=tariff['price'])]])
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=tariff[0]['link'])]])
 
         await update.message.reply_text(
             text=txt,
@@ -674,13 +726,13 @@ async def pre_advanced_tariff_handler(update: Update, context: ContextTypes.DEFA
 🌚 Siz bu tarifni sotib olishni xohlaysizmi?
 
 Avzalliklar:
-    🍭 Yangi mahsulotlar soni: {tariff['quantity']}
+    🍭 Yangi mahsulotlar soni: {tariff[0]['quantity']}
     
-    ⏳ Muddati: {tariff['duration']}
+    ⏳ Muddati: {tariff[0]['duration']} kun
     
     """
 
-        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=tariff['price'])]])
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=tariff[0]['link'])]])
 
         await update.message.reply_text(
             text=txt,
@@ -698,13 +750,13 @@ async def pre_premium_tariff_handler(update: Update, context: ContextTypes.DEFAU
 🌚 Siz bu tarifni sotib olishni xohlaysizmi?
 
 Avzalliklar:
-    🍭 Yangi mahsulotlar soni: {tariff['quantity']}
+    🍭 Yangi mahsulotlar soni: {tariff[0]['quantity']}
     
-    ⏳ Muddati: {tariff['duration']}
+    ⏳ Muddati: {tariff[0]['duration']} kun
     
     """
 
-        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=tariff['price'])]])
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=tariff[0]['link'])]])
 
         await update.message.reply_text(
             text=txt,
@@ -712,6 +764,80 @@ Avzalliklar:
         )
 
     return TARIFF
+
+
+async def need_upd_tariff(user_id):
+    try:
+        tariff = await _get_client_tariff(user_id)
+        origin_date = tariff['created_at'].strftime('%Y.%m.%d')
+        origin_date = origin_date.strip()
+        m = origin_date[1]
+        d = origin_date[2]
+
+        curr_date = get_date()
+        curr_date = curr_date.strip()
+        _m = curr_date[1]
+        _d = curr_date[2]
+
+        if (int(_m) - int(m) == 1) and (int(_d) - int(d) == 0):
+            return True
+        else:
+            return False
+    except ValueError:
+        return False
+
+
+async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    profile = await _get_client(user.id)
+
+    if profile:
+        product = await _get_products(user.id)
+        tariff = await _get_client_tariff(user.id)
+        order = await _get_tariff(tariff[0]['tariff'])
+
+        origin_date = tariff[0]['created_at'].strftime('%Y.%m.%d')
+        origin_date = origin_date.strip()
+        m = origin_date[1]
+        d = origin_date[2]
+
+        curr_date = get_date()
+        curr_date = curr_date.strip()
+        _m = curr_date[1]
+        _d = curr_date[2]
+
+
+        txt = f"""
+👤 Profil:
+
+    📝 ID: {profile[0]['tg_id']}
+    
+    📝 Username: {profile[0]['username']}
+    
+    📝 Telefon raqami: {profile[0]['phone_number']}
+    
+    📝 Aktiv mahsulotlar soni: {len(product)}
+    
+    📝 Tariff: {tariff[0]['tariff']}
+    
+    📝 Tarif muddati: {order[0]['duration']} kun 
+    
+    📝 Qolgan urinishlar soni: {tariff[0]['left_qty']}
+    
+    📝 To\'lov qilingan sana: {tariff[0]['created_at'].strftime('%Y.%m.%d')}
+
+
+    """
+
+        if (int(tariff[0]['left_qty']) <= 2) or (int(_m) - int(m) == 1) and (int(_d) - int(d) == 0):
+            txt += '\n🛎 Tarifingizni yangilang!'
+
+        await update.message.reply_text(
+            text=txt,
+            reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
+        )
+
+    return MENU
 
 
 async def end_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -755,6 +881,7 @@ if __name__ == '__main__':
                 MessageHandler(filters.Regex(".*Mening mahsulotlarim$"), show_products_handler),
                 MessageHandler(filters.Regex(".*Mahsulotni o\'chirish$"), pre_delete_product_handler),
                 MessageHandler(filters.Regex(".*Tariflar"), tariff_handler),
+                MessageHandler(filters.Regex(".*Profil$"), profile_handler),
             ],
             ADD_PRODUCT: [
                 MessageHandler(filters.Regex(".*Kategoriya$"), pre_category_handler),
@@ -817,15 +944,6 @@ if __name__ == '__main__':
                 MessageHandler(filters.Regex(".*Premium$"), pre_premium_tariff_handler),
                 MessageHandler(filters.Regex(".*Orqaga$"), menu_handler),
             ],
-            # BASIC: [
-            #     MessageHandler(filters.Regex(".*Orqaga$"), menu_handler),
-            # ],
-            # ADVANCED: [
-            #     MessageHandler(filters.Regex(".*Orqaga$"), menu_handler),
-            # ],
-            # PREMIUM: [
-            #     MessageHandler(filters.Regex(".*Orqaga$"), menu_handler),
-            # ],
         },
 
         fallbacks=[

@@ -17,14 +17,13 @@ class ProductAdmin(admin.ModelAdmin):
 
 
 class TariffAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'duration')
-    search_fields = ('name', 'price', 'duration')
+    list_display = ('name', 'quantity', 'duration', 'price', 'link')
+    search_fields = ('name', 'quantity', 'duration', 'price')
 
 
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('tg_id', 'tariff', 'duration', 'price', 'created_at')
-    list_filter = ('created_at',)
-    search_fields = ('tg_id', 'tariff', 'duration', 'price')
+    list_display = ('tg_id', 'tariff', 'left_qty', 'created_at', 'left_days')
+    search_fields = ('tg_id', 'tariff', 'left_qty', 'created_at', 'left_days')
 
 
 admin.site.register(TGClient, TGClientAdmin)

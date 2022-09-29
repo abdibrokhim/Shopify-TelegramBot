@@ -35,6 +35,7 @@ class Tariff(models.Model):
     quantity = models.CharField(max_length=255)
     duration = models.CharField(max_length=255)
     price = models.CharField(max_length=255)
+    link = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -42,14 +43,11 @@ class Tariff(models.Model):
 
 class Order(models.Model):
     tg_id = models.CharField(max_length=255)
-    tariff = models.CharField(max_length=255)
-    duration = models.CharField(max_length=255)
-    quantity = models.CharField(max_length=255)
-    left_qty = models.CharField(max_length=255)
-    price = models.CharField(max_length=255)
+    tariff = models.CharField(max_length=255, default='free')
+    left_qty = models.CharField(max_length=255, default=5)
 
     created_at = models.DateTimeField(auto_now=True)
-    left_days = models.DateTimeField(auto_now=True)
+    left_days = models.CharField(max_length=255, default=30)
 
     def __str__(self):
         return self.tg_id
