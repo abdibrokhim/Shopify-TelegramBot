@@ -44,10 +44,46 @@ from telegram.ext import (
 )
 import requests
 
-TELEGRAM_BOT_TOKEN = "5565038506:AAE5p97y4rW8r6yt4nXwEgg9Adea1UzYJmE"
-DEFAULT_PAYMENT_URL = 'https://checkout.paycom.uz/632db4263ea226c2b6ff9e51'
+TELEGRAM_BOT_TOKEN = "5565038506:AAE5p97y4rW8r6yt4nXwEgg9Adea1UzYJmE"  # test token
+DEFAULT_PAYMENT_URL = 'https://checkout.paycom.uz/632db4263ea226c2b6ff9e51'  # default payment url
+
+
+_bots = """
+
+🤖 Bizning Botlar:
+    👉 @tiktokwatermark_removerBot
+    👉 @music_recognizerBot
+    👉 @musicfindmebot
+    👉 @anonyiobot
+    👉 @usellbuybot
+
+📞 Contact: @abdibrokhim
+📞 Contact: @contactdevsbot
+
+📢 Channel: @prmngr
+
+👻 Developer: @abdibrokhim
+
+"""
+
+
+_ads = """
+
+🗣 Biz bilan bog\'lanish uchun:
+    🤖 @contactdevsbot
+    👻 @abdibrokhim
+
+🗣 Bizning kanal: @prmngr
+🗣 Reklama: @prmngr
+🗣 Yangiliklar: @prmngr
+
+🗣 Xullas hamma narsa shetda, krulasila 💩: @prmngr
+
+"""
+
 
 _about = """
+
 💀 Bot orqali o\'z mahsulotlaringizni oson va tez tarzda soting.
 
 🗣 Botdan foydalanish uchun quyidagi amallarni bajaring:
@@ -63,20 +99,33 @@ _about = """
 🗣 Mahsulotni sotish uchun quyidagi amallarni bajaring:
  - Mahsulotingizni tanlang va Forward qiling
     
-🗣 Commandlar xaqida ma\'lumot olish uchun /cmd buyrug\'ini yuboring
+🗣 "Command"lar xaqida ma\'lumot olish uchun /cmd buyrug\'ini yuboring
+
+🗣 Taklif, murojat, reklama va xokazo /ads buyrug\'ini yuboring
+
+🗣 Barcha Botlarimiz haqida ma\'lumot olish uchun /bot buyrug\'ini yuboring
+
+🗣 Kanalimizga a'zo bo'ling: @prmngr
+
 """
 
 _commands = """
 🛠 /start - Botni ishga tushirish
+
 ⚙️ /menu - Bosh menyuni ochish
+
 📌 /add - Mahsulot qo\'shish
+
 🗑 /show - Mening mahsulotlarim
+
 🧨 /del - Mahsulotni o\'chirish
+
 🔬 /doc - Bot haqida ma\'lumot
+
 💣 /end - Botni to\'xtatish
 """
 
-_commands_ = {
+_commands_dict = {
     'start': "start_handler",
     'menu': "menu_handler",
     'add': "add_product_handler",
@@ -86,9 +135,13 @@ _commands_ = {
     'end': "end_handler",
 }
 
-MAIN_MENU_KEYBOARD = [['📌 Mahsulot qo\'shish'], ['🗑 Mening mahsulotlarim'], ['🧨 Mahsulotni o\'chirish']]
+MAIN_MENU_KEYBOARD = [['📌 Mahsulot qo\'shish'], ['🗑 Mening mahsulotlarim'], ['🧨 Mahsulotni o\'chirish'], ['🎁 Tariflar']]
 SECONDARY_MENU_KEYBOARD = [['🧷 Kategoriya', '🖇 Nom'], ['⛓ Tavsif', '🪙 Narx'],
                            ['💩 Rasm', '📦 Eltib Berish', "🔗 To\'lov"], ['👁 Status', '🔙 Orqaga']]
+
+PREMIUM_KEYBOARD = ['🌟 Premium']
+TARIFF_KEYBOARD = [['🌚 Basic'], ['🌝 Advanced'], ['🌟 Premium'], ['🔙 Orqaga']]
+
 
 (USERNAME,
  PHONE_NUMBER,
@@ -106,7 +159,11 @@ SECONDARY_MENU_KEYBOARD = [['🧷 Kategoriya', '🖇 Nom'], ['⛓ Tavsif', '🪙
  WITH_SHIPPING,
  WITHOUT_SHIPPING,
  PAYMENT,
- ) = range(16)
+ TARIFF,
+ BASIC,
+ ADVANCED,
+ PREMIUM
+ ) = range(20)
 
 
 @sync_to_async
@@ -132,6 +189,11 @@ def _is_client(user_id):
 @sync_to_async
 def _get_client(user_id):
     return models.TGClient.objects.filter(tg_id=user_id).values()
+
+
+@sync_to_async
+def _get_clients():
+    return models.TGClient.objects.all().values()
 
 
 @sync_to_async
@@ -170,12 +232,35 @@ def _delete_product(user, photo):
         return False
 
 
+@sync_to_async
+def _get_tariff(name):
+    return models.TGClient.objects.filter(name=name).values()
+
+
+@sync_to_async
+def _get_client_tariff(user_id):
+    return models.TGClient.objects.filter(tg_id=user_id).values()
+
+
+@sync_to_async
+def _is_active(user_id):
+    return models.TGClient.objects.filter(tg_id=user_id, is_active=True).exists()
+
+
 async def doc_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text=_about)
 
 
 async def cmd_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text=_commands)
+
+
+async def ads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(text=_ads)
+
+
+async def rbot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(text=_bots)
 
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -286,7 +371,8 @@ async def pre_shipping_choice_handler(update: Update, context: ContextTypes.DEFA
 
 
 async def pre_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"💀 Mahsulotingiz uchun to\'lov linkini kiriting (masalan: {DEFAULT_PAYMENT_URL}')")
+    await update.message.reply_text(
+        f"💀 Mahsulotingiz uchun to\'lov linkini kiriting (masalan: {DEFAULT_PAYMENT_URL}')")
 
     return PAYMENT
 
@@ -384,13 +470,21 @@ async def payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     txt = f"""
 🧷 Kategoriya: {context.user_data.get('category', 'null')}
+
 🖇 Nomi: {context.user_data.get('title', 'null')}
+
 ⛓ Tavsif: {context.user_data.get('description', 'null')}
+
 🪙 Narxi: {context.user_data.get('price', 'null')}
+
 📦 Eltib berish xizmati: {context.user_data.get('shipping', 'null')[1:]}
+
 🔗 To\'lov linki: {context.user_data.get('payment', 'null')}
+
 🗝 ID: {context.user_data.get('photo', 'null')}
+
 👽 Kimniki: {context.user_data.get('username', 'null')}
+
 ☎️ Aloqa: {context.user_data.get('phone_number', 'null')}
 
     """
@@ -474,12 +568,19 @@ async def show_products_handler(update: Update, context: ContextTypes.DEFAULT_TY
         for product in products:
             txt = f"""
 🧷 Kategoriya: {product['category']}
+
 🖇 Nomi: {product['title']}
+
 ⛓ Tavsif: {product['description']}
+
 🪙 Narxi: {product['price']}
+
 📦 Eltib berish xizmati: {product['ship']}
+
 🗝 ID: {product['photo'][:-4]}
+
 👽 Kimniki: {product['username']}
+
 ☎️ Aloqa: {product['phone_number']}
 """
 
@@ -533,13 +634,109 @@ async def delete_product_handler(update: Update, context: ContextTypes.DEFAULT_T
         return MENU
 
 
+async def tariff_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        '📖 Tariflar',
+        reply_markup=ReplyKeyboardMarkup(TARIFF_KEYBOARD, resize_keyboard=True)
+    )
+    return TARIFF
+
+
+async def pre_basic_tariff_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tariff = await _get_tariff('basic')
+
+    if tariff:
+        txt = f"""
+🌚 Siz bu tarifni sotib olishni xohlaysizmi?
+
+Avzalliklar:
+    🍭 Yangi mahsulotlar soni: {tariff['quantity']}
+    
+    ⏳ Muddati: {tariff['duration']}
+    
+    """
+
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=tariff['price'])]])
+
+        await update.message.reply_text(
+            text=txt,
+            reply_markup=reply_markup
+        )
+
+    return TARIFF
+
+
+async def pre_advanced_tariff_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tariff = await _get_tariff('advanced')
+
+    if tariff:
+        txt = f"""
+🌚 Siz bu tarifni sotib olishni xohlaysizmi?
+
+Avzalliklar:
+    🍭 Yangi mahsulotlar soni: {tariff['quantity']}
+    
+    ⏳ Muddati: {tariff['duration']}
+    
+    """
+
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=tariff['price'])]])
+
+        await update.message.reply_text(
+            text=txt,
+            reply_markup=reply_markup
+        )
+
+    return TARIFF
+
+
+async def pre_premium_tariff_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tariff = await _get_tariff('premium')
+
+    if tariff:
+        txt = f"""
+🌚 Siz bu tarifni sotib olishni xohlaysizmi?
+
+Avzalliklar:
+    🍭 Yangi mahsulotlar soni: {tariff['quantity']}
+    
+    ⏳ Muddati: {tariff['duration']}
+    
+    """
+
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=tariff['price'])]])
+
+        await update.message.reply_text(
+            text=txt,
+            reply_markup=reply_markup
+        )
+
+    return TARIFF
+
+
 async def end_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('👀 Botdan qayta foydalanish uchun /menu bosing',
                                     reply_markup=ReplyKeyboardRemove())
 
 
+async def report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    _cls = ""
+
+    cls = await _get_clients()
+
+    if cls:
+        for i in cls:
+            _cls += 'ID: ' + i['tg_id'] + '\nUsername: ' + i['username'] + '\nPhone: ' + i['phone_number'] + '\n\n'
+
+        await update.message.reply_text(text=_cls)
+        await update.message.reply_text(text='Total: ' + str(len(cls)))
+
+    else:
+        await update.message.reply_text(text='Error')
+
+
 if __name__ == '__main__':
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).read_timeout(7).get_updates_read_timeout(42).build()
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).read_timeout(21).get_updates_read_timeout(42).build()
 
     conv_handler = ConversationHandler(
         entry_points=[
@@ -557,6 +754,7 @@ if __name__ == '__main__':
                 MessageHandler(filters.Regex(".*Mahsulot qo\'shish$"), add_product_handler),
                 MessageHandler(filters.Regex(".*Mening mahsulotlarim$"), show_products_handler),
                 MessageHandler(filters.Regex(".*Mahsulotni o\'chirish$"), pre_delete_product_handler),
+                MessageHandler(filters.Regex(".*Tariflar"), tariff_handler),
             ],
             ADD_PRODUCT: [
                 MessageHandler(filters.Regex(".*Kategoriya$"), pre_category_handler),
@@ -613,6 +811,21 @@ if __name__ == '__main__':
             PAYMENT: [
                 MessageHandler(filters.TEXT, payment_handler),
             ],
+            TARIFF: [
+                MessageHandler(filters.Regex(".*Basic$"), pre_basic_tariff_handler),
+                MessageHandler(filters.Regex(".*Advanced$"), pre_advanced_tariff_handler),
+                MessageHandler(filters.Regex(".*Premium$"), pre_premium_tariff_handler),
+                MessageHandler(filters.Regex(".*Orqaga$"), menu_handler),
+            ],
+            # BASIC: [
+            #     MessageHandler(filters.Regex(".*Orqaga$"), menu_handler),
+            # ],
+            # ADVANCED: [
+            #     MessageHandler(filters.Regex(".*Orqaga$"), menu_handler),
+            # ],
+            # PREMIUM: [
+            #     MessageHandler(filters.Regex(".*Orqaga$"), menu_handler),
+            # ],
         },
 
         fallbacks=[
@@ -623,6 +836,9 @@ if __name__ == '__main__':
             CommandHandler('del', pre_delete_product_handler),
             CommandHandler('doc', doc_handler),
             CommandHandler('cmd', cmd_handler),
+            CommandHandler('ads', ads_handler),
+            CommandHandler('bots', rbot_handler),
+            CommandHandler('r', report_handler),
         ],
     )
 
