@@ -24,7 +24,6 @@ import datetime
 
 from telegram import (
     Update,
-    LabeledPrice,
     ReplyKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardRemove,
@@ -39,11 +38,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
     ConversationHandler,
-    ShippingQueryHandler,
-    PreCheckoutQueryHandler,
-    CallbackQueryHandler,
 )
-import requests
 
 TELEGRAM_BOT_TOKEN = "5565038506:AAE5p97y4rW8r6yt4nXwEgg9Adea1UzYJmE"  # test token
 DEFAULT_PAYMENT_URL = 'https://checkout.paycom.uz/632db4263ea226c2b6ff9e51'  # default payment url
@@ -52,12 +47,15 @@ DEFAULT_PAYMENT_URL = 'https://checkout.paycom.uz/632db4263ea226c2b6ff9e51'  # d
 _bots = """
 
 🤖 Bizning Botlar:
-    👉 @tiktokwatermark_removerBot
-    👉 @music_recognizerBot
-    👉 @musicfindmebot
-    👉 @anonyiobot
-    👉 @usellbuybot
-
+    🤖 @thesaver_bot
+    🤖 @insta_downder_bot
+    🤖 @usellbuybot
+    🤖 @musicfindmebot (yengi versiya)
+    🤖 @anonyiobot
+    🤖 @music_recognizerBot
+    🤖 @tiktokwatermark_removerBot
+    🤖 @tiktoknowater_bot (yengi versiya)
+    
 📞 Contact: @abdibrokhim
 📞 Contact: @contactdevsbot
 
@@ -123,6 +121,12 @@ _commands = """
 
 🔬 /doc - Bot haqida ma\'lumot
 
+📢 /ads - Reklama va Takliflar
+
+🤖 /bots - Bizning botlarimiz
+
+📚 /cmd - Barcha buyruqlar
+
 💣 /end - Botni to\'xtatish
 """
 
@@ -137,7 +141,7 @@ _commands_dict = {
 }
 
 MAIN_MENU_KEYBOARD = [['📌 Mahsulot qo\'shish'], ['🗑 Mening mahsulotlarim'],
-                      ['🧨 Mahsulotni o\'chirish'], ['🎁 Tariflar', '👤 Profil']]
+                      ['🧨 Mahsulotni o\'chirish'], ['🎁 Tariflar', '👤 Profil'], ['📜 Docs', '💰 Reklama', '🤖 Botlar']]
 
 SECONDARY_MENU_KEYBOARD = [['🧷 Kategoriya', '🖇 Nom'], ['⛓ Tavsif', '🪙 Narx'],
                            ['💩 Rasm', '📦 Eltib Berish', "🔗 To\'lov"], ['👁 Status', '🔙 Orqaga']]
@@ -342,6 +346,7 @@ async def phone_number_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     client = await _get_client(user.id)
+
     context.user_data['id'] = client[0]['tg_id']
     context.user_data['username'] = client[0]['username']
     context.user_data['phone_number'] = client[0]['phone_number']
@@ -358,6 +363,7 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def add_product_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     client = await _get_client(user.id)
+
     context.user_data['id'] = client[0]['tg_id']
     context.user_data['username'] = client[0]['username']
     context.user_data['phone_number'] = client[0]['phone_number']
@@ -517,7 +523,7 @@ async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ⛓ Tavsif: {context.user_data.get('description', 'null')}
 
-🪙 Narxi: {context.user_data.get('price', 'null')}
+🪙 Narxi: {context.user_data.get('price', 'null')} so\'m
 
 📦 Eltib berish xizmati: {context.user_data.get('shipping', 'null')[1:]}
 
@@ -527,7 +533,7 @@ async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 👽 Kimniki: {context.user_data.get('username', 'null')}
 
-☎️ Aloqa: {context.user_data.get('phone_number', 'null')}
+☎️ Aloqa: +{context.user_data.get('phone_number', 'null')}
 
     """
 
@@ -538,7 +544,7 @@ async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=ReplyKeyboardMarkup([
                 ['🛁 Yangilash', '🔐 Tasdiqlash'],
                 ['🔙 Orqaga']
-            ], resize_keyboard=True)
+            ], resize_keyboard=True), write_timeout=100
         )
     else:
         await update.message.reply_text(
@@ -546,7 +552,7 @@ async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=ReplyKeyboardMarkup([
                 ['🛁 Yangilash', '🔐 Tasdiqlash'],
                 ['🔙 Orqaga']
-            ], resize_keyboard=True)
+            ], resize_keyboard=True), write_timeout=100
         )
 
     return STATUS
@@ -562,6 +568,7 @@ async def clear_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = update.effective_user
     client = await _get_client(user.id)
+
     context.user_data['id'] = client[0]['tg_id']
     context.user_data['username'] = client[0]['username']
     context.user_data['phone_number'] = client[0]['phone_number']
@@ -590,17 +597,31 @@ async def proceed_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, resize_keyboard=True)
             )
 
-
             return MENU
         else:
+            try:
+                os.remove(f'img/{context.user_data["photo"]}.jpg')
+            except FileNotFoundError:
+                pass
+
             await update.message.reply_text(
-                '💩 Mahsulotingiz tasdiqlanmadi\nIltimos qaytadan yuboring, yoki Tarifingizni yangilang',
+                '💩 Mahsulotingiz tasdiqlanmadi\nIltimos, to\'liq to\'ldirib qaytadan yuboring, yoki Tarifingizni yangilang',
                 reply_markup=ReplyKeyboardMarkup(SECONDARY_MENU_KEYBOARD, resize_keyboard=True)
             )
 
             return ADD_PRODUCT
+    else:
+        try:
+            os.remove(f'img/{context.user_data["photo"]}.jpg')
+        except FileNotFoundError:
+            pass
 
-    return
+        await update.message.reply_text(
+            '💩 Mahsulotingiz tasdiqlanmadi\nIltimos, Tarifingizni yangilab, qaytadan yuboring',
+            reply_markup=ReplyKeyboardMarkup(SECONDARY_MENU_KEYBOARD, resize_keyboard=True)
+        )
+
+        return ADD_PRODUCT
 
 
 async def done_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -625,7 +646,7 @@ async def show_products_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 ⛓ Tavsif: {product['description']}
 
-🪙 Narxi: {product['price']}
+🪙 Narxi: {product['price']} so\'m
 
 📦 Eltib berish xizmati: {product['ship']}
 
@@ -633,7 +654,7 @@ async def show_products_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 👽 Kimniki: {product['username']}
 
-☎️ Aloqa: {product['phone_number']}
+☎️ Aloqa: +{product['phone_number']}
 """
 
             reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('↗️ Sotib olish', url=product['payment'])]])
@@ -702,9 +723,13 @@ async def pre_basic_tariff_handler(update: Update, context: ContextTypes.DEFAULT
 🌚 Siz bu tarifni sotib olishni xohlaysizmi?
 
 Avzalliklar:
+    🌟 Tariff: {tariff[0]['name']}
+    
     🍭 Yangi mahsulotlar soni: {tariff[0]['quantity']}
     
     ⏳ Muddati: {tariff[0]['duration']} kun
+    
+    💰 Narxi: {tariff[0]['price']} so'm
     
     """
 
@@ -726,9 +751,13 @@ async def pre_advanced_tariff_handler(update: Update, context: ContextTypes.DEFA
 🌚 Siz bu tarifni sotib olishni xohlaysizmi?
 
 Avzalliklar:
+    🌟 Tariff: {tariff[0]['name']}
+
     🍭 Yangi mahsulotlar soni: {tariff[0]['quantity']}
     
     ⏳ Muddati: {tariff[0]['duration']} kun
+    
+    💰 Narxi: {tariff[0]['price']} so'm
     
     """
 
@@ -750,9 +779,13 @@ async def pre_premium_tariff_handler(update: Update, context: ContextTypes.DEFAU
 🌚 Siz bu tarifni sotib olishni xohlaysizmi?
 
 Avzalliklar:
+    🌟 Tariff: {tariff[0]['name']}
+    
     🍭 Yangi mahsulotlar soni: {tariff[0]['quantity']}
     
     ⏳ Muddati: {tariff[0]['duration']} kun
+    
+    💰 Narxi: {tariff[0]['price']} so'm
     
     """
 
@@ -814,7 +847,7 @@ async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     📝 Username: {profile[0]['username']}
     
-    📝 Telefon raqami: {profile[0]['phone_number']}
+    📝 Telefon raqami: +{profile[0]['phone_number']}
     
     📝 Aktiv mahsulotlar soni: {len(product)}
     
@@ -862,7 +895,7 @@ async def report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 if __name__ == '__main__':
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).read_timeout(21).get_updates_read_timeout(42).build()
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).read_timeout(100).get_updates_read_timeout(100).build()
 
     conv_handler = ConversationHandler(
         entry_points=[
@@ -882,6 +915,9 @@ if __name__ == '__main__':
                 MessageHandler(filters.Regex(".*Mahsulotni o\'chirish$"), pre_delete_product_handler),
                 MessageHandler(filters.Regex(".*Tariflar"), tariff_handler),
                 MessageHandler(filters.Regex(".*Profil$"), profile_handler),
+                MessageHandler(filters.Regex(".*Docs$"), doc_handler),
+                MessageHandler(filters.Regex(".*Reklama$"), ads_handler),
+                MessageHandler(filters.Regex(".*Botlar$"), rbot_handler),
             ],
             ADD_PRODUCT: [
                 MessageHandler(filters.Regex(".*Kategoriya$"), pre_category_handler),
